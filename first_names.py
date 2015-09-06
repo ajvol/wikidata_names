@@ -13,7 +13,13 @@ baseurl = 'https://www.wikidata.org/w/'
 
 
 def get_q_list():
+    # 202444 - личное имя
+    # 12308941 - мужское
+    # 11879590 - женское
+    # 3409032 - юнисекс
+
     url = 'http://tools.wmflabs.org/wikidata-terminator/?list&lang=ru&mode=t1000&q=claim[31:202444,12308941,11879590,3409032]'
+    url = 'http://tools.wmflabs.org/wikidata-terminator/?list&lang=ru&mode=t1000&q=claim[31:(claim[279:202444])]%20OR%20claim[31:202444]'
     response = urllib.request.urlopen(url)
     str_response = response.readall().decode('utf-8')
 
@@ -77,7 +83,7 @@ def get_ru_name(labels):
             if uniques_num >= 3:
                 k3, v3 = sorted_cans[2]
                 if v3 * 2 >= v2 and v3 > 1:
-                    res += ' / ' + k2
+                    res += ' / ' + k3
 
     return res
 
