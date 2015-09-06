@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import urllib.request, urllib.response
+from collections import defaultdict
 import json
 import re
 
@@ -29,8 +30,46 @@ def get_ru_labels(ids, q):
 
     return (existing_title, ru_labels)
 
-print('ш я жх ё') # ru
-print('š áč'.encode('cp1251','replace'))      # cz
+#labels = ['Зоммер, Янн', 'Тьерсен, Ян', 'Нотра, Ян', 'Ян ЛеКун', 'Янн М’Вила', 'Ян Бон Артюс-Бертран', 'Кеффелек, Ян', 'Бёрон, Ян', 'Капе, Ян', 'Мартел, Янн', 'Ле Гак, Ян']
+#print(get_ru_name(labels))
+def get_ru_name(labels):
+    if len(labels) <= 1:
+        return ''
+
+    candidates = defaultdict(int)
+
+    for label in labels:
+        label =  re.sub('(.*), ', '', label)
+        label = label.split(' ')[0]
+        candidates[label] += 1
+
+    sorted_cans = sorted(candidates.items(), key=lambda x: x[1], reverse=True)
+    print(sorted_cans)
+
+    res = ''
+    uniques_num = len(sorted_cans)
+
+    if uniques_num == 1:
+        k, v = sorted_cans[0]
+        res = k
+
+    if uniques_num >= 2:
+        k1, v1 = sorted_cans[0]
+        res = k1
+        k2, v2 = sorted_cans[1]
+        if v2 * 3 >= v1 and v2 > 1:
+            res += ' / ' + k2
+            if uniques_num >= 3:
+                k3, v3 = sorted_cans[2]
+                if v3 * 2 >= v2 and v3 > 1:
+                    res += ' / ' + k2
+
+    return res
+
+
+
+###############################################################
+
 
 qlist = [
     'Q7451984',   # (Seppo)	222 items link to this item
@@ -65,33 +104,5 @@ for q in qlist:
 
     print(existing_title)
     print(ru_labels)
+    print(get_ru_name(ru_labels))
 
-    for label in ru_labels:
-        label
-
-
-'''
-
-
-
-
-
-    if "en" in item_json["entities"][q]["labels"]:
-        en_title = item_json["entities"][q]["labels"]["en"]["value"]
-    else:
-        en_title = ''
-
-    if "ru" in item_json["entities"][q]["labels"]:
-        ru_title = item_json["entities"][q]["labels"]["ru"]["value"]
-    else:
-        ru_title = ''
-
-    response = urllib.request.urlopen(url_links_here)
-    str_response = response.readall().decode('utf-8')
-    item_json = json.loads(str_response)
-
-    for
-
-    print(en_title.encode('cp1251','replace'))
-    print(ru_title.encode('cp1251','replace'))
-'''
