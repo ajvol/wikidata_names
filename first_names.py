@@ -59,7 +59,7 @@ def get_ru_name(labels):
         candidates[label] += 1
 
     sorted_cans = sorted(candidates.items(), key=lambda x: x[1], reverse=True)
-    print(sorted_cans.encode('cp1251', 'replace'))
+    print(sorted_cans)
 
     res = ''
     uniques_num = len(sorted_cans)
