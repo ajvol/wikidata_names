@@ -1,36 +1,40 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import re
+import urllib.request, urllib.response
 from collections import defaultdict
+import json
+import re
+import requests
 
 __author__ = 'Ajvol'
 
 
-def get_ru_names(labels):
-    if len(labels) <= 2:
-        return 'null'
+user    = 'Botik'
+passw   = ''
+baseurl = 'https://www.wikidata.org/w/'
+params  = '?action=login&lgname=%s&lgpassword=%s&format=json'% (user,passw)
+summary='test'
 
-    candidates = defaultdict(int)
+# Login request
+r1 = requests.post(baseurl+'api.php'+params)
+login_token = r1.json()['login']['token']
 
-    for label in labels:
-        label =  re.sub('(.*), ', '', label)
-        label = label.split(' ')[0]
-        candidates[label] += 1
+#login confirm
+params2 = params+'&lgtoken=%s'% login_token
+r2 = requests.post(baseurl+'api.php'+params2, cookies=r1.cookies)
 
-    print(candidates)
+#get edit token
+r3 = requests.get(baseurl+'api.php'+'?format=json&action=query&meta=tokens&continue=', cookies=r2.cookies)
+edit_token = r3.json()['query']['tokens']['csrftoken']
 
-    res = ''
-    uniques_num = len(candidates.keys())
-    sorted_cans = sorted(candidates.items(), key=lambda x: x[1], reverse=True)
-    print(sorted_cans)
+edit_cookie = r2.cookies.copy()
+edit_cookie.update(r3.cookies)
 
-    k,v = sorted_cans[0]
-    print(k)
+# save action
 
+val = 'Сеппо'
 
-
-    return res
-
-
-labels = ['Ке де Сент-Эмур, Амедей', 'Амедей Боррель', 'Курбе, Амедей Анатоль Проспер', 'Жибо, Амедей', 'Роллан, Амедей', 'Тьерри, Амедей', 'Лами, Франсуа-Жозеф-Амеде', 'Пишо, Амедей', 'Лепелетье, Амедей Луи Мишель', 'Муше, Эрнест Амедей Бартелеми', 'Баст, Амеде де', 'Озанфан, Амеде', 'Меро, Амедей', 'Лагарп, Амедей Эммануэл']
-print(get_ru_names(labels))
+headers = {'content-type': 'application/x-www-form-urlencoded'}
+payload = {'format': 'json', 'action': 'wbsetlabel', 'id': 'Q7451984', 'summary': summary, 'language': 'ru', 'value': val, 'token': edit_token}
+r4 = requests.post(baseurl+'api.php', data=payload, headers=headers, cookies=edit_cookie)
+print (r4.text)
