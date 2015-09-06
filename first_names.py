@@ -158,6 +158,9 @@ for qel in qlist:
 
     print(q, latin_title.encode('cp1251', 'replace'))
 
+    if " " in latin_title:
+        continue
+
     # url = "http://www.wikidata.org/w/api.php?format=json&action=wbgetentities&ids="+q+"&props=labels&languages=ru|en"
     # http://wdq.wmflabs.org/api?q=claim[735:7451984]%20AND%20link[ruwiki]
     url_what_have_this_name = 'http://wdq.wmflabs.org/api?q=claim[735:' + q.replace('Q', '') + ']%20AND%20link[ruwiki]'
