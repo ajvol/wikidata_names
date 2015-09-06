@@ -48,7 +48,7 @@ def get_ru_labels(ids, q):
 # labels = ['Зоммер, Янн', 'Тьерсен, Ян', 'Нотра, Ян', 'Ян ЛеКун', 'Янн М’Вила', 'Ян Бон Артюс-Бертран', 'Кеффелек, Ян', 'Бёрон, Ян', 'Капе, Ян', 'Мартел, Янн', 'Ле Гак, Ян']
 # print(get_ru_name(labels))
 def get_ru_name(labels):
-    if len(labels) <= 1:
+    if len(labels) <= 2:
         return ''
 
     candidates = defaultdict(int)
@@ -59,7 +59,7 @@ def get_ru_name(labels):
         candidates[label] += 1
 
     sorted_cans = sorted(candidates.items(), key=lambda x: x[1], reverse=True)
-    print(sorted_cans)
+    print(sorted_cans.encode('cp1251', 'replace'))
 
     res = ''
     uniques_num = len(sorted_cans)
@@ -114,21 +114,21 @@ def wikidata_login():
 def wikidata_edit(q, label, description, aliases):
     headers = {'content-type': 'application/x-www-form-urlencoded'}
 
-    if len(description) > 0:
-        payload_d = {'format': 'json', 'action': 'wbsetdescription', 'id': q,
-                     'summary': 'name from Russian Wikipedia link statistics', 'language': 'ru', 'value': description,
-                     'token': edit_token, 'bot': 1}
-        r4 = requests.post(baseurl + 'api.php', data=payload_d, headers=headers, cookies=edit_cookie)
-
     if len(label) > 0:
         payload_l = {'format': 'json', 'action': 'wbsetlabel', 'id': q,
                      'summary': 'name from Russian Wikipedia link statistics', 'language': 'ru', 'value': label,
                      'token': edit_token, 'bot': 1}
         r5 = requests.post(baseurl + 'api.php', data=payload_l, headers=headers, cookies=edit_cookie)
 
+    if len(description) > 0:
+        payload_d = {'format': 'json', 'action': 'wbsetdescription', 'id': q,
+                     'language': 'ru', 'value': description,
+                     'token': edit_token, 'bot': 1}
+        r4 = requests.post(baseurl + 'api.php', data=payload_d, headers=headers, cookies=edit_cookie)
+
     if len(aliases) > 0:
         payload_a = {'format': 'json', 'action': 'wbsetaliases', 'id': q,
-                     'summary': 'name from Russian Wikipedia link statistics', 'language': 'ru', 'add': aliases,
+                     'language': 'ru', 'add': aliases,
                      'token': edit_token, 'bot': 1}
         r6 = requests.post(baseurl + 'api.php', data=payload_a, headers=headers, cookies=edit_cookie)
 
@@ -140,7 +140,8 @@ def wikidata_edit(q, label, description, aliases):
 
 qlist = [('Q13479698', 'Diogo'), ('Q1986777', 'Nicolaus')]
 
-# qlist = get_q_list()
+qlist = get_q_list()
+
 edit_cookie, edit_token = wikidata_login()
 
 for qel in qlist:
@@ -149,7 +150,7 @@ for qel in qlist:
     latin_title = qel[1]
     q = qel[0]
 
-    print(q, latin_title)
+    print(q, latin_title.encode('cp1251', 'replace'))
 
     # url = "http://www.wikidata.org/w/api.php?format=json&action=wbgetentities&ids="+q+"&props=labels&languages=ru|en"
     # http://wdq.wmflabs.org/api?q=claim[735:7451984]%20AND%20link[ruwiki]
@@ -167,7 +168,7 @@ for qel in qlist:
 
     existing_title, ru_labels = get_ru_labels(ids, q)
 
-    print(existing_title)
+    print(existing_title.encode('cp1251', 'replace'))
     print(ru_labels)
 
     new_ru_label = get_ru_name(ru_labels)
