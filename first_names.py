@@ -65,7 +65,10 @@ def get_ru_name(labels):
         candidates[label] += 1
 
     sorted_cans = sorted(candidates.items(), key=lambda x: x[1], reverse=True)
-    print(sorted_cans)
+    try:
+        print(sorted_cans)
+    except:
+        ''
 
     res = ''
     uniques_num = len(sorted_cans)
@@ -178,7 +181,10 @@ for qel in qlist:
     existing_title, ru_labels = get_ru_labels(ids, q)
 
     print(existing_title.encode('cp1251', 'replace'))
-    print(ru_labels)
+    try:
+        print(ru_labels)
+    except:
+        ''
 
     new_ru_label = get_ru_name(ru_labels)
     print(new_ru_label)
