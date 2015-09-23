@@ -8,7 +8,7 @@ import json
 import re
 import requests
 
-__author__ = 'Ajvol'
+__author__ = 'Alexander Sigachov'
 baseurl = 'https://www.wikidata.org/w/'
 
 
