@@ -39,19 +39,19 @@ __author__ = 'Alexander Sigachov'
 countries = {}
 file = codecs.open("countries2.txt", 'r', encoding='utf-8')
 for row in file:
-    match = re.search('(.*)\,(.*)', row)
+    match = re.search('(.*),(.*)', row)
     countries[match.group(1)] = match.group(2)
 
 response = urllib.request.urlopen("http://tools.wmflabs.org/wikidata-terminator/?list&lang=ru")
 start_data0 = response.readall().decode('utf-8')
 
-items_without_descriptions = re.findall("term\=(.+?)\&doit", start_data0, re.IGNORECASE)
+items_without_descriptions = re.findall("term=(.+?)&doit", start_data0, re.IGNORECASE)
 
 j = 0
 
 for myid0 in items_without_descriptions:
 
-    j = j + 1
+    j += 1
     if j > 20:
         break
 
@@ -67,7 +67,7 @@ for myid0 in items_without_descriptions:
         start_data = start_data.replace('<tr>', '\n<tr>')
 
         # id_list = re.findall( "wiki/Q(\d+)'", start_data, re.IGNORECASE )
-        id_list = re.findall("wiki/Q(\d+)'>.*\/td.*\/td.*><\/td><\/tr>", start_data, re.IGNORECASE)
+        id_list = re.findall("wiki/Q(\d+)'>.*/td.*/td.*></td></tr>", start_data, re.IGNORECASE)
     except:
         continue
 
@@ -95,11 +95,8 @@ for myid0 in items_without_descriptions:
                 data = json.loads(str_response)
 
                 # P31 - частный случай понятия
-                if i == 1 and "claims" in data["entities"][next_adm_item] and "P31" in data["entities"][next_adm_item][
-                    "claims"]:
-                    adm_type_id = "Q" + str(
-                        data["entities"][next_adm_item]["claims"]["P31"][0]["mainsnak"]["datavalue"]["value"][
-                            "numeric-id"])
+                if i == 1 and "claims" in data["entities"][next_adm_item] and "P31" in data["entities"][next_adm_item]["claims"]:
+                    adm_type_id = "Q" + str(data["entities"][next_adm_item]["claims"]["P31"][0]["mainsnak"]["datavalue"]["value"]["numeric-id"])
 
                 if i == 1 and "ruwiki" in data["entities"][next_adm_item]["sitelinks"]:
                     ru_wiki_page = data["entities"][next_adm_item]["sitelinks"]["ruwiki"]["title"]
@@ -118,19 +115,17 @@ for myid0 in items_without_descriptions:
 
                 # P131 - административно-территориальная единица
                 if "claims" in data["entities"][next_adm_item] and "P131" in data["entities"][next_adm_item]["claims"]:
-                    next_adm_item = "Q" + str(
-                        data["entities"][next_adm_item]["claims"]["P131"][0]["mainsnak"]["datavalue"]["value"][
-                            "numeric-id"])
+                    next_adm_item = "Q" + str(data["entities"][next_adm_item]["claims"]["P131"][0]["mainsnak"]["datavalue"]["value"]["numeric-id"])
                 else:
                     break
 
             seen_list = set()
             for itm in (adm_sequence[::-1])[:-1]:
                 itm = re.sub('\(.*\)', '', itm)
-                itm = re.sub('\<.*\>', '', itm)
+                itm = re.sub('<.*>', '', itm)
                 itm = re.sub('\[\[', '', itm)
                 itm = re.sub('\]\]', '', itm)
-                itm = re.sub('\{\{\!\}\}.*', '', itm)
+                itm = re.sub('\{\{!\}\}.*', '', itm)
 
                 itm = itm.replace('сельский совет', 'сельсовет')
 
@@ -144,8 +139,7 @@ for myid0 in items_without_descriptions:
                     description = description + itm + ', '
 
             if adm_type_id != '':
-                response = urllib.request.urlopen(
-                    'http://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&props=labels&languages=ru&format=json&ids=' + adm_type_id)
+                response = urllib.request.urlopen('http://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&props=labels&languages=ru&format=json&ids=' + adm_type_id)
                 str_response = response.readall().decode('utf-8')
                 data = json.loads(str_response)
 
@@ -154,13 +148,11 @@ for myid0 in items_without_descriptions:
                 adm_type = adm_type.replace(' в России', '')
                 adm_type = adm_type.lower()
 
-
             else:
                 if ru_wiki_page != '':
                     escaped = urllib.parse.quote(ru_wiki_page.encode('utf-8'))
 
-                    response = urllib.request.urlopen(
-                        'http://ru.wikipedia.org/w/api.php?format=json&action=query&prop=revisions&rvprop=content&titles=' + escaped)
+                    response = urllib.request.urlopen('http://ru.wikipedia.org/w/api.php?format=json&action=query&prop=revisions&rvprop=content&titles=' + escaped)
                     str_response = response.readall().decode('utf-8')
                     data = json.loads(str_response)
 
@@ -168,7 +160,7 @@ for myid0 in items_without_descriptions:
                         wiki_text = wiki_text = data["query"]["pages"][itm]["revisions"][0]["*"]
 
                     match0 = re.search('.*\{\{.*НП.*', wiki_text)
-                    match = re.search('.*(статус|Тип)\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*(статус|Тип)\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is None or match0 is None:
                         adm_type = ''
                     else:
@@ -199,8 +191,7 @@ for myid0 in items_without_descriptions:
                 if wiki_text == '':
                     escaped = urllib.parse.quote(ru_wiki_page.encode('utf-8'))
 
-                    response = urllib.request.urlopen(
-                        'http://ru.wikipedia.org/w/api.php?format=json&action=query&prop=revisions&rvprop=content&titles=' + escaped)
+                    response = urllib.request.urlopen('http://ru.wikipedia.org/w/api.php?format=json&action=query&prop=revisions&rvprop=content&titles=' + escaped)
                     str_response = response.readall().decode('utf-8')
                     data = json.loads(str_response)
 
@@ -211,17 +202,17 @@ for myid0 in items_without_descriptions:
                 if match is not None:
                     adm_sequence.append('self')
 
-                    match = re.search('.*\|община\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|община\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(re.sub('\<.*\>', '', match.group(1).strip()))
+                        adm_sequence.append(re.sub('<.*>', '', match.group(1).strip()))
 
-                    match = re.search('.*\|район в таблице\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|район в таблице\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         tmp = match.group(1).strip()
                         tmp = re.sub('район.*', 'район', tmp)
                         adm_sequence.append(tmp.strip())
 
-                    match = re.search('.*\|область\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|область\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
@@ -231,17 +222,17 @@ for myid0 in items_without_descriptions:
                 if match is not None:
                     adm_sequence.append('self')
 
-                    match = re.search('.*\|община\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|община\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(re.sub('\<.*\>', '', match.group(1).strip()))
+                        adm_sequence.append(re.sub('<.*>', '', match.group(1).strip()))
 
-                    match = re.search('.*\|район в таблице\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|район в таблице\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         tmp = match.group(1).strip()
                         tmp = re.sub('район.*', 'район', tmp)
                         adm_sequence.append(tmp.strip())
 
-                    match = re.search('.*\|регион\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|регион\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
@@ -251,17 +242,17 @@ for myid0 in items_without_descriptions:
                 if match is not None:
                     adm_sequence.append('self')
 
-                    match = re.search('.*\|Подчинён совету\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|Подчинён совету\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
-                    match = re.search('.*\|район в таблице\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|район в таблице\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         tmp = match.group(1).strip()
                         tmp = re.sub('район.*', 'район', tmp)
                         adm_sequence.append(tmp.strip())
 
-                    match = re.search('.*\|Область\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|Область\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
@@ -271,15 +262,15 @@ for myid0 in items_without_descriptions:
                 if match is not None:
                     adm_sequence.append('self')
 
-                    match = re.search('.*\|поселение\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|поселение\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
-                    match = re.search('.*\|район\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|район\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
-                    match = re.search('.*\|регион\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|регион\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
@@ -289,11 +280,11 @@ for myid0 in items_without_descriptions:
                 if match is not None:
                     adm_sequence.append('self')
 
-                    match = re.search('.*\|коммуна\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|коммуна\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
-                    match = re.search('.*\|район\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|район\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
@@ -303,15 +294,15 @@ for myid0 in items_without_descriptions:
                 if match is not None:
                     adm_sequence.append('self')
 
-                    match = re.search('.*\|поселение\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|поселение\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
-                    match = re.search('.*\|район\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|район\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
-                    match = re.search('.*\|регион\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|регион\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
@@ -325,7 +316,7 @@ for myid0 in items_without_descriptions:
                     if match is not None and match.group(1).strip() != '' and match.group(1).strip() != 'река':
                         description = ', ' + match.group(1).strip()
 
-                    match = re.search('.*\|Регион\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|Регион\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         description = description + ', ' + match.group(1).strip()
 
@@ -333,29 +324,29 @@ for myid0 in items_without_descriptions:
                 if match is not None and len(adm_sequence) == 0:
                     adm_sequence.append('self')
 
-                    match = re.search('.*\|община\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|община\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(re.sub('\<.*\>', '', match.group(1).strip()))
+                        adm_sequence.append(re.sub('<.*>', '', match.group(1).strip()))
 
-                    match = re.search('.*\|район\s*\=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    match = re.search('.*\|регион\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|район\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
-                    match = re.search('.*\|страна\s*\=(.*)', wiki_text, re.IGNORECASE)
+                    match = re.search('.*\|регион\s*=(.*)', wiki_text, re.IGNORECASE)
+                    if match is not None and match.group(1).strip() != '':
+                        adm_sequence.append(match.group(1).strip())
+
+                    match = re.search('.*\|страна\s*=(.*)', wiki_text, re.IGNORECASE)
                     if match is not None and match.group(1).strip() != '':
                         adm_sequence.append(match.group(1).strip())
 
                 seen_list = set()
                 for itm in (adm_sequence[::-1])[:-1]:
                     itm = re.sub('\(.*\)', '', itm)
-                    itm = re.sub('\<.*\>', '', itm)
+                    itm = re.sub('<.*>', '', itm)
                     itm = re.sub('\[\[', '', itm)
                     itm = re.sub('\]\]', '', itm)
-                    itm = re.sub('\{\{\!\}\}.*', '', itm)
+                    itm = re.sub('\{\{!\}\}.*', '', itm)
 
                     itm = itm.replace('Автономная Республика Крым', 'Крым')
                     itm = itm.replace('сельский совет', 'сельсовет')
@@ -396,7 +387,6 @@ for myid0 in items_without_descriptions:
 
             print("   " + str(myid) + ': ' + final_description)
 
-
             # item = pywikibot.ItemPage(repo, 'Q'+str(myid) )
 
             if 1 == 0:  # 'ru' in item.descriptions:
@@ -411,14 +401,8 @@ for myid0 in items_without_descriptions:
             print(e)
             time.sleep(5)
 
-
-
-
-
-
 # cd ~/progs/pywikibot/core
 # ajvol@ubuntu:~/progs/pywikibot/core$ python pwb.py myscripts/test_wd.py
-
 
 # subjekt RF vishe etogo objekta
 # claim[132:835714,132:831740,132:309166,132:184122,132:183342,132:41162] AND tree[45605][131]
@@ -427,7 +411,6 @@ for myid0 in items_without_descriptions:
 # http://208.80.153.172/api?q=tree[1060604][131]&labels=ru&props=P132
 
 # определяем по одному вышестоящие адм единицы
-
 
 """
 site = pywikibot.Site('wikidata')
