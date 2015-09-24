@@ -35,6 +35,306 @@ __author__ = 'Alexander Sigachov'
 # id_list=['45605','1058036'] # ржевский район, деревня Михайловка в России
 # id_list=['4297458','4297459','4297460','4297462','4297463','4297465','4297466','4297468'] #Украина
 
+def get_text_by_url(url):
+    response = urllib.request.urlopen(url)
+    return response.readall().decode('utf-8')
+
+def get_json_by_url(url):
+    txt =  get_text_by_url(url)
+    return json.loads(txt)
+
+def get_admtype_by_wikidata(a_type_id):
+    d = get_json_by_url('http://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&props=labels&languages=ru&format=json&ids=' + a_type_id)
+    a_type = d["entities"][a_type_id]["labels"]["ru"]["value"]
+
+    a_type = a_type.replace(' в России', '')
+    a_type = a_type.lower()
+
+    assert isinstance(a_type, object)
+    return a_type
+
+def get_ru_label_by_ce_label(ce_label):
+    escp0 = urllib.parse.quote(ce_label.encode('utf-8'))
+    escp = urllib.parse.quote(ce_label.capitalize().encode('utf-8'))
+    d = get_json_by_url('http://www.wikidata.org/w/api.php?action=wbgetentities&sites=cewiki&props=labels&languages=ru&format=json&titles=' + escp0+'|'+escp)
+    if "entities" in d:
+        for q in d["entities"]:
+            if "labels" in d["entities"][q] and "ru" in d["entities"][q]["labels"]:
+                return d["entities"][q]["labels"]["ru"]["value"]
+            break
+
+
+def get_admtype_by_wikipedia(wp_lang, wp_page):
+    if wp_page != '':
+        escp = urllib.parse.quote(ru_wiki_page.encode('utf-8'))
+        d = get_json_by_url('http://'+wp_lang+'.wikipedia.org/w/api.php?format=json&action=query&prop=revisions&rvprop=content&titles=' + escp)
+
+        for itm in d["query"]["pages"]:
+            wikitext  = d["query"]["pages"][itm]["revisions"][0]["*"]
+
+        if wp_lang=='ru':
+            match0 = re.search('.*\{\{.*НП.*', wiki_text)
+            match = re.search('.*(статус|Тип)\s*=(.*)', wiki_text, re.IGNORECASE)
+            if match is None or match0 is None:
+                a_type = ''
+            else:
+                a_type = match.group(2).strip().lower()
+                a_type = a_type.replace('{{s|', '')
+                a_type = a_type.replace('}}', '')
+                a_type = a_type.replace(']]', '')
+                a_type = a_type.replace('[[', '')
+                # a_type = adm_type.replace('муниципальный','')
+                a_type = a_type.strip()
+
+            if a_type == '':
+                match = re.search('.*НП-.*\|.*\|(.*)', wiki_text, re.IGNORECASE)
+                if match is None:
+                    a_type = ''
+                else:
+                    a_type = match.group(1).strip().lower()
+                    a_type = a_type.replace('{{s|', '')
+                    a_type = a_type.replace('}}', '')
+                    a_type = a_type.replace('[[', '')
+                    a_type = a_type.replace(']]', '')
+                    # adm_type = adm_type.replace('муниципальный','')
+                    a_type = a_type.strip()
+        elif wp_lang=='ce':
+            match0 = re.search('.*\{\{.*НБМ.*', wiki_text)
+            match = re.search('.*(статус)\s*=(.*)', wiki_text, re.IGNORECASE)
+            if match is None or match0 is None:
+                a_type = ''
+            else:
+                a_type = match.group(2).strip().lower()
+                a_type = a_type.replace('{{s|', '')
+                a_type = a_type.replace('}}', '')
+                a_type = a_type.replace(']]', '')
+                a_type = a_type.replace('[[', '')
+                a_type = a_type.strip()
+                a_type = get_ru_label_by_ce_label(a_type)
+
+        return a_type
+
+def get_descr_from_ruwiki(p_name):
+    adm_sequence = []
+    w_text = ''
+    descr = ''
+
+    escaped = urllib.parse.quote(p_name.encode('utf-8'))
+    d = get_json_by_url('http://ru.wikipedia.org/w/api.php?format=json&action=query&prop=revisions&rvprop=content&titles=' + escaped)
+
+    for itm in d["query"]["pages"]:
+        w_text = d["query"]["pages"][itm]["revisions"][0]["*"]
+
+    match = re.search('.*НП-Украина.*', w_text, re.IGNORECASE)
+    if match is not None:
+        adm_sequence.append('self')
+
+        match = re.search('.*\|община\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(re.sub('<.*>', '', match.group(1).strip()))
+
+        match = re.search('.*\|район в таблице\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            tmp = match.group(1).strip()
+            tmp = re.sub('район.*', 'район', tmp)
+            adm_sequence.append(tmp.strip())
+
+        match = re.search('.*\|область\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        adm_sequence.append('Украина'.strip())
+
+    match = re.search('.*НП-Белоруссия.*', w_text, re.IGNORECASE)
+    if match is not None:
+        adm_sequence.append('self')
+
+        match = re.search('.*\|община\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(re.sub('<.*>', '', match.group(1).strip()))
+
+        match = re.search('.*\|район в таблице\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            tmp = match.group(1).strip()
+            tmp = re.sub('район.*', 'район', tmp)
+            adm_sequence.append(tmp.strip())
+
+        match = re.search('.*\|регион\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        adm_sequence.append('Белоруссия'.strip())
+
+    match = re.search('.*Населённый пункт Украины.*', w_text, re.IGNORECASE)
+    if match is not None:
+        adm_sequence.append('self')
+
+        match = re.search('.*\|Подчинён совету\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        match = re.search('.*\|район в таблице\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            tmp = match.group(1).strip()
+            tmp = re.sub('район.*', 'район', tmp)
+            adm_sequence.append(tmp.strip())
+
+        match = re.search('.*\|Область\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        adm_sequence.append('Украина'.strip())
+
+    match = re.search('.*НП.Россия.*', w_text, re.IGNORECASE)
+    if match is not None:
+        adm_sequence.append('self')
+
+        match = re.search('.*\|поселение\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        match = re.search('.*\|район\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        match = re.search('.*\|регион\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        adm_sequence.append('Россия'.strip())
+
+    match = re.search('.*НП-Молдавия.*', w_text, re.IGNORECASE)
+    if match is not None:
+        adm_sequence.append('self')
+
+        match = re.search('.*\|коммуна\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        match = re.search('.*\|район\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        adm_sequence.append('Молдавия'.strip())
+
+    match = re.search('.*НП-Казахстан.*', w_text, re.IGNORECASE)
+    if match is not None:
+        adm_sequence.append('self')
+
+        match = re.search('.*\|поселение\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        match = re.search('.*\|район\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        match = re.search('.*\|регион\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        adm_sequence.append('Казахстан'.strip())
+
+    match = re.search('\{\{Река.*', w_text, re.IGNORECASE)
+    if match is not None:
+        descr = ''
+
+        match = re.search('.*\((.*)\).*', ru_wiki_page, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '' and match.group(1).strip() != 'река':
+            descr = ', ' + match.group(1).strip()
+
+        match = re.search('.*\|Регион\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            descr = descr + ', ' + match.group(1).strip()
+
+    match = re.search('.*\{\{НП.*', w_text, re.IGNORECASE)
+    if match is not None and len(adm_sequence) == 0:
+        adm_sequence.append('self')
+
+        match = re.search('.*\|община\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(re.sub('<.*>', '', match.group(1).strip()))
+
+        match = re.search('.*\|район\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        match = re.search('.*\|регион\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        match = re.search('.*\|страна\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+    seen_list = set()
+    for itm in (adm_sequence[::-1])[:-1]:
+        itm = re.sub('\(.*\)', '', itm)
+        itm = re.sub('<.*>', '', itm)
+        itm = re.sub('\[\[', '', itm)
+        itm = re.sub('\]\]', '', itm)
+        itm = re.sub('\{\{!\}\}.*', '', itm)
+
+        itm = itm.replace('Автономная Республика Крым', 'Крым')
+        itm = itm.replace('сельский совет', 'сельсовет')
+
+        itm = itm.strip()
+
+        if itm in countries:
+            itm = countries[itm]
+
+        if (itm != '') and (itm not in seen_list):
+            seen_list.add(itm)
+            descr = descr + itm + ', '
+
+        return descr
+
+
+def get_descr_from_cewiki(p_name):
+    adm_sequence = []
+    w_text = ''
+    descr = ''
+
+    escpd = urllib.parse.quote(p_name.encode('utf-8'))
+    d = get_json_by_url('http://ce.wikipedia.org/w/api.php?format=json&action=query&prop=revisions&rvprop=content&titles=' + escpd)
+
+    for itm in d["query"]["pages"]:
+        w_text = d["query"]["pages"][itm]["revisions"][0]["*"]
+
+    match = re.search('.*НБМ-Росси.*', w_text, re.IGNORECASE)
+    if match is not None:
+        adm_sequence.append('self')
+
+        match = re.search('.*\|кӀошт\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            tmp = match.group(1).strip()
+            adm_sequence.append(tmp.strip())
+
+        match = re.search('.*\|регион таблицехь\s*=(.*)', w_text, re.IGNORECASE)
+        if match is not None and match.group(1).strip() != '':
+            adm_sequence.append(match.group(1).strip())
+
+        adm_sequence.append('Россия'.strip())
+
+    seen_list = set()
+    for itm in (adm_sequence[::-1])[:-1]:
+        itm = re.sub('\(.*\)', '', itm)
+        itm = re.sub('<.*>', '', itm)
+        itm = re.sub('\[\[', '', itm)
+        itm = re.sub('\]\]', '', itm)
+        itm = re.sub('\{\{!\}\}.*', '', itm)
+        itm = get_ru_label_by_ce_label(itm)
+
+        itm = itm.strip()
+
+        if itm in countries:
+            itm = countries[itm]
+
+        if (itm != '') and (itm not in seen_list):
+            seen_list.add(itm)
+            descr = descr + itm + ', '
+
+        return descr
 
 countries = {}
 file = codecs.open("countries2.txt", 'r', encoding='utf-8')
@@ -42,14 +342,12 @@ for row in file:
     match = re.search('(.*),(.*)', row)
     countries[match.group(1)] = match.group(2)
 
-response = urllib.request.urlopen("http://tools.wmflabs.org/wikidata-terminator/?list&lang=ru")
-start_data0 = response.readall().decode('utf-8')
-
-items_without_descriptions = re.findall("term=(.+?)&doit", start_data0, re.IGNORECASE)
+labels_without_descriptions_page = get_text_by_url("http://tools.wmflabs.org/wikidata-terminator/?list&lang=ru")
+labels_without_descriptions = re.findall("term=(.+?)&doit", labels_without_descriptions_page, re.IGNORECASE)
 
 j = 0
 
-for myid0 in items_without_descriptions:
+for label in labels_without_descriptions:
 
     j += 1
     if j > 20:
@@ -57,30 +355,26 @@ for myid0 in items_without_descriptions:
 
     try:
         print('===== NEW TERM ======')
-        print(myid0)
-        print(urllib.parse.unquote(myid0))
+        print(label)
+        print(urllib.parse.unquote(label))
 
-        response = urllib.request.urlopen(
-            "http://tools.wmflabs.org/wikidata-terminator/?lang=ru&term=" + myid0 + "&doit=1")
-        start_data = response.readall().decode('utf-8')
-
+        start_data = get_text_by_url("http://tools.wmflabs.org/wikidata-terminator/?lang=ru&term=" + label + "&doit=1")
         start_data = start_data.replace('<tr>', '\n<tr>')
 
-        # id_list = re.findall( "wiki/Q(\d+)'", start_data, re.IGNORECASE )
-        id_list = re.findall("wiki/Q(\d+)'>.*/td.*/td.*></td></tr>", start_data, re.IGNORECASE)
+        item_list = re.findall("wiki/Q(\d+)'>.*/td.*/td.*></td></tr>", start_data, re.IGNORECASE)
     except:
         continue
 
-    for myid in id_list:
+    # items within label
+    for item in item_list:
         try:
-            # myid='56151'
-            print("   " + myid)
+            print("   " + item)
 
             adm_type_id = ''
-            if myid[0:1] == 'Q':
-                next_adm_item = myid
+            if item[0:1] == 'Q':
+                next_adm_item = item
             else:
-                next_adm_item = 'Q' + myid
+                next_adm_item = 'Q' + item
             adm_sequence = []
             description = ''
             ru_wiki_page = ''
@@ -89,23 +383,22 @@ for myid0 in items_without_descriptions:
 
             for i in range(1, 6):
                 # http://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&props=labels|claims|sitelinks&languages=ru|en&format=json&ids=Q18779470
-                response = urllib.request.urlopen(
-                    'http://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&props=labels|claims|sitelinks&languages=ru|en&format=json&ids=' + next_adm_item)
-                str_response = response.readall().decode('utf-8')
-                data = json.loads(str_response)
+                data = get_json_by_url('http://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&props=labels|claims|sitelinks&languages=ru|en&format=json&ids=' + next_adm_item)
 
-                # P31 - частный случай понятия
-                if i == 1 and "claims" in data["entities"][next_adm_item] and "P31" in data["entities"][next_adm_item]["claims"]:
-                    adm_type_id = "Q" + str(data["entities"][next_adm_item]["claims"]["P31"][0]["mainsnak"]["datavalue"]["value"]["numeric-id"])
+                if i == 1:
+                    # P31 - частный случай понятия
+                    if "claims" in data["entities"][next_adm_item] and "P31" in data["entities"][next_adm_item]["claims"]:
+                        adm_type_id = "Q" + str(data["entities"][next_adm_item]["claims"]["P31"][0]["mainsnak"]["datavalue"]["value"]["numeric-id"])
 
-                if i == 1 and "ruwiki" in data["entities"][next_adm_item]["sitelinks"]:
-                    ru_wiki_page = data["entities"][next_adm_item]["sitelinks"]["ruwiki"]["title"]
+                    if "ruwiki" in data["entities"][next_adm_item]["sitelinks"]:
+                        ru_wiki_page = data["entities"][next_adm_item]["sitelinks"]["ruwiki"]["title"]
 
-                if i == 1 and "cewiki" in data["entities"][next_adm_item]["sitelinks"]:
-                    ce_wiki_page = data["entities"][next_adm_item]["sitelinks"]["cewiki"]["title"]
+                    if "cewiki" in data["entities"][next_adm_item]["sitelinks"]:
+                        ce_wiki_page = data["entities"][next_adm_item]["sitelinks"]["cewiki"]["title"]
 
                 try:
                     current_title = data["entities"][next_adm_item]["labels"]["ru"]["value"]
+                    # удаляем скобки из названия
                     current_title = re.sub('\(.*\)', '', current_title)
                 except:
                     current_title = ''
@@ -139,226 +432,16 @@ for myid0 in items_without_descriptions:
                     description = description + itm + ', '
 
             if adm_type_id != '':
-                response = urllib.request.urlopen('http://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&props=labels&languages=ru&format=json&ids=' + adm_type_id)
-                str_response = response.readall().decode('utf-8')
-                data = json.loads(str_response)
-
-                adm_type = data["entities"][adm_type_id]["labels"]["ru"]["value"]
-
-                adm_type = adm_type.replace(' в России', '')
-                adm_type = adm_type.lower()
-
-            else:
-                if ru_wiki_page != '':
-                    escaped = urllib.parse.quote(ru_wiki_page.encode('utf-8'))
-
-                    response = urllib.request.urlopen('http://ru.wikipedia.org/w/api.php?format=json&action=query&prop=revisions&rvprop=content&titles=' + escaped)
-                    str_response = response.readall().decode('utf-8')
-                    data = json.loads(str_response)
-
-                    for itm in data["query"]["pages"]:
-                        wiki_text = wiki_text = data["query"]["pages"][itm]["revisions"][0]["*"]
-
-                    match0 = re.search('.*\{\{.*НП.*', wiki_text)
-                    match = re.search('.*(статус|Тип)\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is None or match0 is None:
-                        adm_type = ''
-                    else:
-                        adm_type = match.group(2).strip().lower()
-                        adm_type = adm_type.replace('{{s|', '')
-                        adm_type = adm_type.replace('}}', '')
-                        adm_type = adm_type.replace(']]', '')
-                        adm_type = adm_type.replace('[[', '')
-                        # adm_type = adm_type.replace('муниципальный','')
-                        adm_type = adm_type.strip()
-
-                    if adm_type == '':
-                        match = re.search('.*НП-.*\|.*\|(.*)', wiki_text, re.IGNORECASE)
-                        if match is None:
-                            adm_type = ''
-                        else:
-                            adm_type = match.group(1).strip().lower()
-                            adm_type = adm_type.replace('{{s|', '')
-                            adm_type = adm_type.replace('}}', '')
-                            adm_type = adm_type.replace('[[', '')
-                            adm_type = adm_type.replace(']]', '')
-                            # adm_type = adm_type.replace('муниципальный','')
-                            adm_type = adm_type.strip()
+                adm_type = get_admtype_by_wikidata(adm_type_id)
+            elif ru_wiki_page != '':
+                adm_type = get_admtype_by_wikipedia('ru', ru_wiki_page)
+            elif ce_wiki_page != '':
+                adm_type = get_admtype_by_wikipedia('ce', ce_wiki_page)
 
             if description.strip() == '' and ru_wiki_page != '':
-                adm_sequence = []
-
-                if wiki_text == '':
-                    escaped = urllib.parse.quote(ru_wiki_page.encode('utf-8'))
-
-                    response = urllib.request.urlopen('http://ru.wikipedia.org/w/api.php?format=json&action=query&prop=revisions&rvprop=content&titles=' + escaped)
-                    str_response = response.readall().decode('utf-8')
-                    data = json.loads(str_response)
-
-                    for itm in data["query"]["pages"]:
-                        wiki_text = wiki_text = data["query"]["pages"][itm]["revisions"][0]["*"]
-
-                match = re.search('.*НП-Украина.*', wiki_text, re.IGNORECASE)
-                if match is not None:
-                    adm_sequence.append('self')
-
-                    match = re.search('.*\|община\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(re.sub('<.*>', '', match.group(1).strip()))
-
-                    match = re.search('.*\|район в таблице\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        tmp = match.group(1).strip()
-                        tmp = re.sub('район.*', 'район', tmp)
-                        adm_sequence.append(tmp.strip())
-
-                    match = re.search('.*\|область\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    adm_sequence.append('Украина'.strip())
-
-                match = re.search('.*НП-Белоруссия.*', wiki_text, re.IGNORECASE)
-                if match is not None:
-                    adm_sequence.append('self')
-
-                    match = re.search('.*\|община\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(re.sub('<.*>', '', match.group(1).strip()))
-
-                    match = re.search('.*\|район в таблице\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        tmp = match.group(1).strip()
-                        tmp = re.sub('район.*', 'район', tmp)
-                        adm_sequence.append(tmp.strip())
-
-                    match = re.search('.*\|регион\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    adm_sequence.append('Белоруссия'.strip())
-
-                match = re.search('.*Населённый пункт Украины.*', wiki_text, re.IGNORECASE)
-                if match is not None:
-                    adm_sequence.append('self')
-
-                    match = re.search('.*\|Подчинён совету\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    match = re.search('.*\|район в таблице\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        tmp = match.group(1).strip()
-                        tmp = re.sub('район.*', 'район', tmp)
-                        adm_sequence.append(tmp.strip())
-
-                    match = re.search('.*\|Область\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    adm_sequence.append('Украина'.strip())
-
-                match = re.search('.*НП.Россия.*', wiki_text, re.IGNORECASE)
-                if match is not None:
-                    adm_sequence.append('self')
-
-                    match = re.search('.*\|поселение\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    match = re.search('.*\|район\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    match = re.search('.*\|регион\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    adm_sequence.append('Россия'.strip())
-
-                match = re.search('.*НП-Молдавия.*', wiki_text, re.IGNORECASE)
-                if match is not None:
-                    adm_sequence.append('self')
-
-                    match = re.search('.*\|коммуна\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    match = re.search('.*\|район\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    adm_sequence.append('Молдавия'.strip())
-
-                match = re.search('.*НП-Казахстан.*', wiki_text, re.IGNORECASE)
-                if match is not None:
-                    adm_sequence.append('self')
-
-                    match = re.search('.*\|поселение\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    match = re.search('.*\|район\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    match = re.search('.*\|регион\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    adm_sequence.append('Казахстан'.strip())
-
-                match = re.search('\{\{Река.*', wiki_text, re.IGNORECASE)
-                if match is not None:
-                    description = ''
-
-                    match = re.search('.*\((.*)\).*', ru_wiki_page, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '' and match.group(1).strip() != 'река':
-                        description = ', ' + match.group(1).strip()
-
-                    match = re.search('.*\|Регион\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        description = description + ', ' + match.group(1).strip()
-
-                match = re.search('.*\{\{НП.*', wiki_text, re.IGNORECASE)
-                if match is not None and len(adm_sequence) == 0:
-                    adm_sequence.append('self')
-
-                    match = re.search('.*\|община\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(re.sub('<.*>', '', match.group(1).strip()))
-
-                    match = re.search('.*\|район\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    match = re.search('.*\|регион\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                    match = re.search('.*\|страна\s*=(.*)', wiki_text, re.IGNORECASE)
-                    if match is not None and match.group(1).strip() != '':
-                        adm_sequence.append(match.group(1).strip())
-
-                seen_list = set()
-                for itm in (adm_sequence[::-1])[:-1]:
-                    itm = re.sub('\(.*\)', '', itm)
-                    itm = re.sub('<.*>', '', itm)
-                    itm = re.sub('\[\[', '', itm)
-                    itm = re.sub('\]\]', '', itm)
-                    itm = re.sub('\{\{!\}\}.*', '', itm)
-
-                    itm = itm.replace('Автономная Республика Крым', 'Крым')
-                    itm = itm.replace('сельский совет', 'сельсовет')
-
-                    itm = itm.strip()
-
-                    if itm in countries:
-                        itm = countries[itm]
-
-                    if (itm != '') and (itm not in seen_list):
-                        seen_list.add(itm)
-                        description = description + itm + ', '
+                description = get_descr_from_ruwiki(ru_wiki_page)
+            elif description.strip() == '' and ce_wiki_page != '':
+                description = get_descr_from_cewiki(ce_wiki_page)
 
             match = re.search(
                 '(.*)(община|муниципалитет|коммунна|коммуна|департамент|округ|провинция|графство|кантон|область|административный регион|посёлок|село|город|тауншип|специальный район|деревня|уезд|волость)(.*)',
@@ -385,7 +468,7 @@ for myid0 in items_without_descriptions:
                 print('Empty description. Adm_type=' + adm_type)
                 final_description = ''
 
-            print("   " + str(myid) + ': ' + final_description)
+            print("   " + str(item) + ': ' + final_description)
 
             # item = pywikibot.ItemPage(repo, 'Q'+str(myid) )
 

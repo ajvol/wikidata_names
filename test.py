@@ -8,33 +8,22 @@ import requests
 
 __author__ = 'Ajvol'
 
+def get_text_by_url(url):
+    response = urllib.request.urlopen(url)
+    return response.readall().decode('utf-8')
 
-user    = 'Botik'
-passw   = ''
-baseurl = 'https://www.wikidata.org/w/'
-params  = '?action=login&lgname=%s&lgpassword=%s&format=json'% (user,passw)
-summary='test'
+def get_json_by_url(url):
+    txt =  get_text_by_url(url)
+    return json.loads(txt)
 
-# Login request
-r1 = requests.post(baseurl+'api.php'+params)
-login_token = r1.json()['login']['token']
+def get_ru_label_by_ce_label(ce_label):
+    escp = urllib.parse.quote(ce_label.capitalize().encode('utf-8'))
+    d = get_json_by_url('http://www.wikidata.org/w/api.php?action=wbgetentities&sites=cewiki&props=labels&languages=ru&format=json&titles=' + escp)
+    print(d)
+    if "entities" in d:
+        for q in d["entities"]:
+            if "labels" in d["entities"][q] and "ru" in d["entities"][q]["labels"]:
+                return d["entities"][q]["labels"]["ru"]["value"]
+            break
 
-#login confirm
-params2 = params+'&lgtoken=%s'% login_token
-r2 = requests.post(baseurl+'api.php'+params2, cookies=r1.cookies)
-
-#get edit token
-r3 = requests.get(baseurl+'api.php'+'?format=json&action=query&meta=tokens&continue=', cookies=r2.cookies)
-edit_token = r3.json()['query']['tokens']['csrftoken']
-
-edit_cookie = r2.cookies.copy()
-edit_cookie.update(r3.cookies)
-
-# save action
-
-val = 'Сеппо'
-
-headers = {'content-type': 'application/x-www-form-urlencoded'}
-payload = {'format': 'json', 'action': 'wbsetlabel', 'id': 'Q7451984', 'summary': summary, 'language': 'ru', 'value': val, 'token': edit_token}
-r4 = requests.post(baseurl+'api.php', data=payload, headers=headers, cookies=edit_cookie)
-print (r4.text)
+print (get_ru_label_by_ce_label('эвла'))
